@@ -1,58 +1,128 @@
-package test.java.tests;
-
+package tests;
 
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.*;
-import static org.hamcrest.Matchers.*;
 
+import static io.restassured.RestAssured.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class RestfulApiTests {
 
-
-    // Base URL apontando para o domínio informado por você
-    private static String baseUrl = "https://restful-api.dev";
+    private static String baseUrl = "https://api.restful-api.dev/objects";
     private static String createdId;
 
+    @BeforeAll
+    public static void setup() {
+        RestAssured.baseURI = baseUrl;
+    }
 
+    // 1 - GET all
     @Test
     @Order(1)
     public void testGetAllObjects() {
-        RestAssured.given()
-                .when().get(baseUrl + "/objects")
+        given()
+                .when().get()
                 .then().statusCode(200)
-                .body("size()", greaterThanOrEqualTo(0));
+                .and().contentType(ContentType.JSON)
+                .and().body("size()", greaterThan(0));
     }
 
-
+    // 2 - POST create object
     @Test
     @Order(2)
     public void testCreateObject() {
-        String body = """
-        {
-        "name": "Test Object",
-        "data": {
-        "year": 2025,
-        "price": 199.99,
-        "CPU model": "Intel Core i9",
-        "Hard disk size": "1 TB"
-        }
-        }
-        """;
+        String jsonBody = """
+            {
+              "name": "Notebook Teste QA",
+              "data": {
+                "year": 2025,
+                "price": 999.99,
+                "CPU model": "Intel Core i7",
+                "Hard disk size": "1 TB"
+              }
+            }
+            """;
 
-        Response response = RestAssured.given()
+        Response response = given()
                 .contentType(ContentType.JSON)
-                .body(body)
-                .when().post(baseUrl + "/objects");
-
-
-        response.then().statusCode(200)
-                .body("name", equalTo("Test Object"));
-
+                .body(jsonBody)
+                .when().post()
+                .then().statusCode(200)
+                .and().extract().response();
 
         createdId = response.jsonPath().getString("id");
-        Assertions.assertNotNull(createdId);
+        assertNotNull(createdId, "ID do objeto criado não deve ser nulo");
     }
-}
+
+    // 3 - GET created object
+    @Test
+    @Order(3)
+    public void testGetCreatedObject() {
+        given()
+                .when().get("/" + createdId)
+                .then().statusCode(200)
+                .and().body("id", equalTo(createdId))
+                .and().body("name", equalTo("Notebook Teste QA"));
+    }
+
+    // 4 - PUT update
+    @Test
+    @Order(4)
+    public void testUpdateObject() {
+        String updateJson = """
+            {
+              "name": "Notebook Atualizado",
+              "data": {
+                "year": 2026,
+                "price": 1099.90
+              }
+            }
+            """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(updateJson)
+                .when().put("/" + createdId)
+                .then().statusCode(200)
+                .and().body("name", equalTo("Notebook Atualizado"));
+    }
+
+    // 5 - PATCH partial update
+    @Test
+    @Order(5)
+    public void testPartialUpdateObject() {
+        String patchJson = """
+            {
+              "name": "Notebook Patched"
+            }
+            """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(patchJson)
+                .when().patch("/" + createdId)
+                .then().statusCode(200)
+                .and().body("name", equalTo("Notebook Patched"));
+    }
+
+    // 6 - GET invalid ID
+    @Test
+    @Order(6)
+    public void testGetInvalidObject() {
+        given()
+                .when().get("/99999999")
+                .then().statusCode(anyOf(is(404), is(400)));
+    }
+
+    // 7 - Ensure created object appears in list
+    @Test
+    @Order(7)
+    public void testListContainsCreatedId() {
+        given()
+                .whe
