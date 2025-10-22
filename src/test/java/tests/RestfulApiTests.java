@@ -42,7 +42,6 @@ public class RestfulApiTests {
         }
         """;
 
-
         Response response = RestAssured.given()
                 .contentType(ContentType.JSON)
                 .body(body)
