@@ -125,4 +125,106 @@ public class RestfulApiTests {
     @Order(7)
     public void testListContainsCreatedId() {
         given()
-                .whe
+                .when().get()
+                .then().statusCode(200)
+                .and().body("id", hasItem(createdId));
+    }
+
+    // 8 - PUT with invalid data
+    @Test
+    @Order(8)
+    public void testUpdateWithInvalidData() {
+        String invalidJson = """
+            { "invalid": "data" }
+            """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(invalidJson)
+                .when().put("/" + createdId)
+                .then().statusCode(anyOf(is(400), is(500)));
+    }
+
+    // 9 - POST missing required name field
+    @Test
+    @Order(9)
+    public void testCreateWithoutName() {
+        String jsonBody = """
+            { "data": { "price": 200.0 } }
+            """;
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(jsonBody)
+                .when().post()
+                .then().statusCode(anyOf(is(400), is(422), is(500)));
+    }
+
+    // 10 - Validate Content-Type header
+    @Test
+    @Order(10)
+    public void testContentTypeHeader() {
+        Response response = given()
+                .when().get()
+                .then().extract().response();
+
+        assertEquals("application/json", response.getContentType());
+    }
+
+    // 11 - Performance test
+    @Test
+    @Order(11)
+    public void testResponseTime() {
+        given()
+                .when().get()
+                .then().time(lessThan(3000L));
+    }
+
+    // 12 - Create multiple objects
+    @Test
+    @Order(12)
+    public void testCreateMultipleObjects() {
+        for (int i = 0; i < 3; i++) {
+            String jsonBody = String.format("""
+                {
+                  "name": "Device %d",
+                  "data": { "year": 2025 }
+                }
+                """, i);
+
+            given()
+                    .contentType(ContentType.JSON)
+                    .body(jsonBody)
+                    .when().post()
+                    .then().statusCode(200);
+        }
+    }
+
+    // 13 - GET all again
+    @Test
+    @Order(13)
+    public void testGetAllObjectsAgain() {
+        given()
+                .when().get()
+                .then().statusCode(200)
+                .and().body("size()", greaterThanOrEqualTo(1));
+    }
+
+    // 14 - DELETE created object
+    @Test
+    @Order(14)
+    public void testDeleteObject() {
+        given()
+                .when().delete("/" + createdId)
+                .then().statusCode(anyOf(is(200), is(204)));
+    }
+
+    // 15 - GET deleted object should fail
+    @Test
+    @Order(15)
+    public void testDeletedObjectNotFound() {
+        given()
+                .when().get("/" + createdId)
+                .then().statusCode(anyOf(is(404), is(400)));
+    }
+}
